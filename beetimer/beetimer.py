@@ -108,7 +108,10 @@ def status(slug: str):
     goal = load_goal_file(slug)
 
     start = datetime.datetime.fromisoformat(goal["start"])
-    now = datetime.datetime.now()
+    if "stop" in goal:
+        now = datetime.datetime.fromisoformat(goal["stop"])
+    else:
+        now = datetime.datetime.now()
     delta = now - start
 
     typer.echo(f"Goal: {slug}")
@@ -134,7 +137,10 @@ def load_goal_file(slug):
 
 def get_points(goal):
     start = datetime.datetime.fromisoformat(goal["start"])
-    now = datetime.datetime.now()
+    if "stop" in goal:
+        now = datetime.datetime.fromisoformat(goal["stop"])
+    else:
+        now = datetime.datetime.now()
     delta = now - start
 
     # Calculate the points earned
@@ -153,6 +159,9 @@ def stop(slug: str):
     goal_path = Path.home() / ".config" / "beetimer" / f"{slug}.json"
 
     start = datetime.datetime.fromisoformat(goal["start"])
+    if "stop" in goal:
+        typer.echo(f"Goal {slug} already stopped.")
+        raise typer.Exit(1)
     now = datetime.datetime.now()
     delta = now - start
 
@@ -171,7 +180,7 @@ def stop(slug: str):
 
     # Confirm upload
     if typer.confirm("Upload points to Beeminder?"):
-        # upload(slug, points)
+        _upload(slug, points)
         # Delete the goal file
         goal_path.unlink()
         return
@@ -189,14 +198,7 @@ def upload(slug: str):
 
     print(f"Goal: {slug}, Points: {points:.2f}. Uploading...")
 
-    # pyminder = Pyminder(user=CONFIG["username"], token=CONFIG["auth_token"])
-    # goal = pyminder.get_goal(slug)
-    # if goal is None:
-    #     typer.echo(f"Goal {slug} not found.")
-    #     raise typer.Exit(1)
-    #
-    # # Upload the goal
-    # pyminder.create_datapoint(slug, points, comment=f"Beetimer: {delta}")
+    _upload(slug, points)
 
     # Confirm delete
     if not typer.confirm("Delete goal file?"):
@@ -204,6 +206,11 @@ def upload(slug: str):
 
     # Delete the goal file
     goal_path.unlink()
+
+
+def _upload(slug, points):
+    pyminder = Pyminder(user=CONFIG["username"], token=CONFIG["auth_token"])
+    pyminder._beeminder.create_datapoint(slug, points, datetime.datetime.now().timestamp(), "upload from pyminder")
 
 
 @app.command()
@@ -215,3 +222,5 @@ def delete(slug: str):
         raise typer.Exit(1)
 
     goal_path.unlink()
+
+    typer.echo(f"Deleted goal {slug}.")
