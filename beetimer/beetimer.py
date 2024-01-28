@@ -153,7 +153,7 @@ def get_points(goal):
 
 
 @app.command()
-def stop(slug: str):
+def stop(slug: str, force_upload: Annotated[bool, typer.Option("--force-upload", "-f")] = False):
     """Stop a timer for a goal."""
     goal = load_goal_file(slug)
     goal_path = Path.home() / ".config" / "beetimer" / f"{slug}.json"
@@ -179,6 +179,12 @@ def stop(slug: str):
         json.dump(goal, f)
 
     # Confirm upload
+    if force_upload:
+        _upload(slug, points)
+        # Delete the goal file
+        goal_path.unlink()
+        return
+
     if typer.confirm("Upload points to Beeminder?"):
         _upload(slug, points)
         # Delete the goal file
